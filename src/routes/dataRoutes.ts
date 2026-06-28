@@ -25,7 +25,7 @@ const moneyMovementLimiter = rateLimit({
   message: { error: 'Too many payment attempts — please wait' },
 });
 
-// Write routes — must be registered before /transactions/:transactionId
+
 router.post('/transactions/transfer', requireAuth, moneyMovementLimiter, transferMoney);
 router.post(
   '/transactions/interbank-transfer',
@@ -35,12 +35,12 @@ router.post(
 );
 router.post('/transactions/pay-bill', requireAuth, moneyMovementLimiter, payBill);
 
-// Transaction routes — all protected + no-cache
+
 router.get('/transactions', requireAuth, noCache, getTransactions);
 router.get('/transactions/:transactionId', requireAuth, noCache, getTransactionById);
 router.patch('/transactions/:transactionId/category', requireAuth, updateCategory);
 
-// Dashboard routes — all protected + no-cache
+
 router.get('/dashboard/summary', requireAuth, noCache, getDashboardSummary);
 router.get('/dashboard/balance-trend', requireAuth, noCache, getBalanceTrend);
 

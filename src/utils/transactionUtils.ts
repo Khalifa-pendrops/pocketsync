@@ -51,7 +51,6 @@ export type DebitResult =
   | { ok: true; account: ILinkedAccount }
   | { ok: false; reason: "NOT_FOUND" | "INSUFFICIENT_FUNDS" };
 
-/** Atomically debit an account if balance is sufficient — no replica-set transaction required */
 export const debitAccountAtomic = async (
   userId: string,
   accountId: string,
@@ -84,7 +83,6 @@ export const debitAccountAtomic = async (
   return { ok: false, reason: "INSUFFICIENT_FUNDS" };
 };
 
-/** Atomically credit an account */
 export const creditAccountAtomic = async (
   userId: string,
   accountId: string,
@@ -117,14 +115,12 @@ const sanitizeLabel = (value: string, maxLength: number): string =>
     maxLength,
   );
 
-/** Strip HTML from a description; returns fallback if input is empty after sanitisation */
 export const sanitizeDescription = (value: unknown, fallback = ""): string => {
   if (typeof value !== "string" || !value.trim()) return fallback;
   const cleaned = sanitizeLabel(value, 200);
   return cleaned.length >= 1 ? cleaned : fallback;
 };
 
-/** Any Nigerian bank name — not limited to PocketSync linkable institutions */
 export const parseRecipientBank = (bank: unknown): string | null => {
   if (typeof bank !== "string" || !bank.trim()) return null;
   const cleaned = sanitizeLabel(bank, 100);

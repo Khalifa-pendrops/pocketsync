@@ -16,7 +16,7 @@ interface JwtPayload {
 }
 
 export const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
-  // Read from HttpOnly cookie — never Authorization header for this app
+
   const token = req.cookies?.accessToken;
 
   if (!token) {

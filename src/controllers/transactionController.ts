@@ -63,10 +63,7 @@ export const getTransactions = async (req: Request, res: Response): Promise<void
       limit = '30',
     } = req.query;
 
-    // Base filter — ALWAYS scoped to authenticated user
     const filter: Record<string, unknown> = { userId };
-
-    // If accountId provided, verify it belongs to this user before filtering
     const safeCategory = typeof category === 'string' ? category : undefined;
     const safeType = typeof type === 'string' ? type : undefined;
     const safeFromDate = typeof fromDate === 'string' ? fromDate : undefined;
@@ -77,7 +74,7 @@ export const getTransactions = async (req: Request, res: Response): Promise<void
     if (accountId && typeof accountId === 'string') {
       const account = await LinkedAccount.findOne({
         _id: accountId,
-        userId, // Ownership check — IDOR prevention
+        userId,
         isActive: true,
       });
 
@@ -111,7 +108,7 @@ export const getTransactions = async (req: Request, res: Response): Promise<void
     }
 
     const pageNum = Math.max(1, parseInt(safePage, 10));
-    const limitNum = Math.min(30, parseInt(safeLimit, 10)); // Hard cap at 30 
+    const limitNum = Math.min(30, parseInt(safeLimit, 10));
     const skip = (pageNum - 1) * limitNum;
 
     const [transactions, total] = await Promise.all([
@@ -150,9 +147,8 @@ export const getTransactionById = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    // Ownership check — IDOR prevention
     if (transaction.userId.toString() !== req.user!.userId) {
-      res.status(403).json({ error: 'Forbidden' }); // 403 not 404 — avoids ID enumeration
+      res.status(403).json({ error: 'Forbidden' });
       return;
     }
 
@@ -270,7 +266,6 @@ export const transferMoney = async (req: Request, res: Response): Promise<void> 
 };
 
 // POST /api/v1/transactions/interbank-transfer
-// Mock NIP transfer to an external bank account (not one of the user's linked accounts)
 export const interbankTransfer = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user!.userId;

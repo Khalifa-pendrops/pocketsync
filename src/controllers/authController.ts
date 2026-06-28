@@ -25,7 +25,6 @@ const setTokenCookies = (
   accessToken: string,
   refreshToken: string,
 ) => {
-  // Access token — short-lived, HttpOnly
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -33,7 +32,6 @@ const setTokenCookies = (
     maxAge: 15 * 60 * 1000, // 15 minutes
   });
 
-  // Refresh token — longer-lived, HttpOnly, scoped to refresh route only
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -142,9 +140,6 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
 
-    // Prevent NoSQL injection — reject non-string inputs
-    // this issue surfaced during cybersecurty testing, where the team attempted to send an object instead of a string to bypass validation
-
     if (typeof email !== "string" || typeof password !== "string") {
       res.status(400).json({ error: "Invalid input" });
       return;
@@ -155,12 +150,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Explicitly select passwordHash (select: false by default)
     const user = await User.findOne({
       email: email.toLowerCase().trim(),
     }).select("+passwordHash +refreshTokenHash");
 
-    // Generic error — never reveal whether email exists
     if (!user) {
       res.status(401).json({ error: "Invalid credentials" });
       return;

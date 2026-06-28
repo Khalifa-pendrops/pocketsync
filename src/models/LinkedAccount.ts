@@ -5,10 +5,10 @@ export type Institution = 'GTBank' | 'Access Bank' | 'Kuda' | 'Opay' | 'Moniepoi
 export interface ILinkedAccount extends Document {
   userId: mongoose.Types.ObjectId;
   institution: Institution;
-  maskedAccountNumber: string; // Last 4 digits only e.g. "****1234"
-  accessToken: string;         // Mock OAuth token - never returned in API responses
+  maskedAccountNumber: string;
+  accessToken: string;
   tokenExpiresAt: Date;
-  balance: number;             // Stored in kobo (integer) - divide by 100 for display
+  balance: number;
   currency: string;
   accountType: string; 
   isActive: boolean;
@@ -26,17 +26,16 @@ const LinkedAccountSchema = new Schema<ILinkedAccount>(
     institution: {
       type: String,
       required: true,
-      // Whitelist enforced at schema level
       enum: ['GTBank', 'Access Bank', 'Kuda', 'Opay', 'Moniepoint'],
     },
     maskedAccountNumber: {
       type: String,
-      required: true, // e.g. "****1234" — never full account number
+      required: true,
     },
     accessToken: {
       type: String,
       required: true,
-      select: false, // Never returned in API responses
+      select: false,
     },
     tokenExpiresAt: {
       type: Date,

@@ -1,36 +1,32 @@
-# PocketSync API — Frontend Integration Guide
+# PocketSync API notes
 
-**Version:** 1.0.0  
-**Production base URL:** `https://pocketsync.onrender.com`  
-**API prefix:** `/api/v1`  
-**OpenAPI spec:** [`openapi.yaml`](./openapi.yaml) (import into Postman, Swagger UI, or Redoc)
+**Base URL (prod):** `https://pocketsync.onrender.com/api/v1`  
+**OpenAPI:** [`openapi.yaml`](./openapi.yaml)
 
 ---
 
 ## Quick start
 
 ```javascript
-// axios example — configure once
 import axios from 'axios';
 
 export const api = axios.create({
   baseURL: 'https://pocketsync.onrender.com/api/v1',
-  withCredentials: true, // REQUIRED — sends HttpOnly cookies
+  withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
 ```
 
 ```javascript
-// fetch example
 fetch('https://pocketsync.onrender.com/api/v1/auth/login', {
   method: 'POST',
-  credentials: 'include', // REQUIRED
+  credentials: 'include',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ email: 'user@example.com', password: 'password123' }),
 });
 ```
 
-> **Render cold starts:** The free tier spins down after inactivity. The first request after idle may take 30–60 seconds. Show a loading state on initial app load.
+On Render free tier, the first request after idle can take up to a minute.
 
 ---
 
@@ -45,46 +41,35 @@ PocketSync does **not** use `Authorization: Bearer` headers.
 
 Both cookies are **HttpOnly**, **Secure** (production), and **SameSite=Strict**.
 
-### Recommended auth flow
+### Typical flows
 
-**Sign up (Figma screens 1–2):**
-```
-1. POST /auth/register       → account created, OTP emailed (unverified)
-2. POST /auth/verify-otp     → purpose: "signup", 6-digit code
-3. POST /auth/login          → cookies set; user.emailVerified must be true
-```
+**Sign up**
+1. `POST /auth/register`
+2. `POST /auth/verify-otp` (`purpose: signup`)
+3. `POST /auth/login`
 
-**Returning user:**
-```
-1. POST /auth/login          → cookies set automatically
-2. All API calls             → cookies sent automatically (withCredentials)
-3. On 401 "Session expired"  → POST /auth/refresh
-4. If refresh fails          → redirect to login
-5. POST /auth/logout         → clears cookies server-side
-```
+**Session**
+1. `POST /auth/login`
+2. Protected calls with cookies
+3. On `401` session expired → `POST /auth/refresh`
+4. `POST /auth/logout` to end session
 
-**Forgot password (Figma login → reset):**
-```
-1. POST /auth/forgot-password → always returns generic success message
-2. POST /auth/reset-password  → email + code + newPassword (verifies OTP inline)
-```
+**Password reset**
+1. `POST /auth/forgot-password`
+2. `POST /auth/reset-password`
 
-**BVN onboarding (Figma screens 2/3–Connect Accounts):**
-```
-1. GET  /onboarding/status        → check currentStep after login
-2. POST /onboarding/bvn/submit      → bvn + phone (mock validation, sends SMS OTP)
-3. POST /onboarding/bvn/verify-otp  → 6-digit phone code
-4. GET  /onboarding/bvn/accounts    → discovered accounts from mock BVN lookup
-5. POST /onboarding/bvn/connect     → link selected accountIds
-```
+**BVN onboarding**
+1. `GET /onboarding/status`
+2. `POST /onboarding/bvn/submit`
+3. `POST /onboarding/bvn/verify-otp`
+4. `GET /onboarding/bvn/accounts`
+5. `POST /onboarding/bvn/connect`
 
-BVN lookup and SMS are **mocked** — OTPs log to the server console; `devOtp` in development responses.
+BVN and SMS are simulated in dev. OTPs print to the server log; responses may include `devOtp` when `NODE_ENV=development`.
 
-### CORS requirement
+### CORS
 
-The backend only accepts requests from the origin configured in `ALLOWED_ORIGIN` (production must include your frontend URL). The frontend **must** send `credentials: 'include'` / `withCredentials: true`.
-
-Coordinate with backend to add your deployed frontend origin (e.g. `https://pocketsync.vercel.app`) to Render env vars.
+Set `ALLOWED_ORIGIN` to your frontend URL. Requests need `credentials: 'include'` / `withCredentials: true`.
 
 ---
 
@@ -191,7 +176,7 @@ No auth. Use for uptime checks and cold-start probing.
 }
 ```
 
-`devOtp` is only returned when `NODE_ENV=development` and email is mocked (no `RESEND_API_KEY`).
+`devOtp` is returned in development when email is not sent via Resend.
 
 ---
 
@@ -256,7 +241,7 @@ Resend a 6-digit email code. 30-second cooldown per email + purpose.
 }
 ```
 
-**Response `200`** (`purpose: reset` — code only, no password change yet):
+**Response `200`** (`purpose: reset`, code only):
 ```json
 {
   "message": "Verification code accepted",
@@ -283,7 +268,7 @@ Always returns the same message (prevents email enumeration).
 }
 ```
 
-`devOtp` is only present in development when the email exists and email is mocked.
+`devOtp` may appear in development when the account exists.
 
 ---
 
@@ -331,7 +316,7 @@ Verifies the reset OTP and sets a new password in one step.
 }
 ```
 
-**Response `403`** (email not verified — redirect to OTP screen):
+**Response `403`** (email not verified):
 ```json
 {
   "error": "Email not verified — please check your inbox for the 6-digit code",
@@ -366,7 +351,7 @@ Call this when any protected route returns `401` with `"Session expired — plea
 
 ---
 
-### Onboarding (mock BVN — requires auth cookie)
+### Onboarding (requires auth)
 
 All routes require a logged-in, email-verified user.
 
@@ -397,7 +382,7 @@ All routes require a logged-in, email-verified user.
 
 #### `POST /api/v1/onboarding/bvn/submit`
 
-Mock BVN validation — any valid 11-digit BVN works (not real NIBSS lookup).
+Accepts any valid 11-digit BVN in dev (no NIBSS lookup).
 
 **Body:**
 ```json
@@ -513,7 +498,7 @@ Public. Lists banks available for **account linking** only.
 }
 ```
 
-> Interbank transfers accept **any** bank name — this list is only for linking.
+Interbank transfers accept any bank name. This list is for linking only.
 
 ---
 
@@ -521,7 +506,7 @@ Public. Lists banks available for **account linking** only.
 
 #### `POST /api/v1/accounts/link`
 
-Mock OAuth account linking.
+Link an account (test flow with preset balances).
 
 **Body:**
 ```json
@@ -573,7 +558,7 @@ Mock OAuth account linking.
 }
 ```
 
-Store `id` values — required for transfers and bill payments.
+Save account `id` values for transfers and bill payments.
 
 ---
 
@@ -650,7 +635,7 @@ Valid categories: `Food`, `Transport`, `Bills`, `Entertainment`, `Savings`, `Tra
 
 ---
 
-#### `POST /api/v1/transactions/transfer` — Internal transfer
+#### `POST /api/v1/transactions/transfer`
 
 Move money **between your own linked accounts**.
 
@@ -688,9 +673,9 @@ Move money **between your own linked accounts**.
 
 ---
 
-#### `POST /api/v1/transactions/interbank-transfer` — External transfer
+#### `POST /api/v1/transactions/interbank-transfer`
 
-Send money to **any external Nigerian bank account** (mock NIP).
+Send to an external Nigerian bank account (simulated NIP).
 
 **Body:**
 ```json
@@ -779,7 +764,7 @@ Send money to **any external Nigerian bank account** (mock NIP).
 
 #### `GET /api/v1/dashboard/summary`
 
-Aggregated view — last 30 days of activity.
+Last 30 days of activity.
 
 **Response `200`:**
 ```json
@@ -814,25 +799,13 @@ Aggregated view — last 30 days of activity.
 
 ---
 
-## Transfer types — decision guide
+## Which transfer endpoint?
 
-Use this to pick the right endpoint in the UI:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Where is the money going?                                  │
-├─────────────────────────────────────────────────────────────┤
-│  Another of MY linked accounts  →  POST /transactions/transfer
-│  Someone else's bank account    →  POST /transactions/interbank-transfer
-│  A utility / subscription bill  →  POST /transactions/pay-bill
-└─────────────────────────────────────────────────────────────┘
-```
-
-| Endpoint | Debits | Credits | Recipient |
-|----------|--------|---------|-----------|
-| `/transfer` | Source account | Destination account | Your linked account |
-| `/interbank-transfer` | Source account | None | External bank (any name) |
-| `/pay-bill` | Source account | None | Bill provider |
+| Destination | Endpoint |
+|-------------|----------|
+| Your other linked account | `POST /transactions/transfer` |
+| External bank account | `POST /transactions/interbank-transfer` |
+| Bill provider | `POST /transactions/pay-bill` |
 
 ---
 
@@ -842,7 +815,7 @@ Use this to pick the right endpoint in the UI:
 |---------------|-----------|
 | Sign up + email OTP | `POST /auth/register`, `POST /auth/verify-otp` |
 | Login / forgot password | `POST /auth/login`, `POST /auth/forgot-password`, `POST /auth/reset-password` |
-| BVN onboarding (mock) | `GET /onboarding/status`, `POST /onboarding/bvn/submit`, `POST /onboarding/bvn/verify-otp`, `GET /onboarding/bvn/accounts`, `POST /onboarding/bvn/connect` |
+| BVN onboarding | `GET /onboarding/status`, `POST /onboarding/bvn/submit`, `POST /onboarding/bvn/verify-otp`, `GET /onboarding/bvn/accounts`, `POST /onboarding/bvn/connect` |
 | Manual account link (optional) | `GET /institutions`, `POST /accounts/link` |
 | Dashboard home | `GET /dashboard/summary`, `GET /dashboard/balance-trend` |
 | Accounts list | `GET /accounts`, `DELETE /accounts/:id` |
@@ -854,7 +827,7 @@ Use this to pick the right endpoint in the UI:
 
 ---
 
-## TypeScript types (copy-paste)
+## TypeScript types
 
 ```typescript
 export type TransactionCategory =
@@ -900,33 +873,30 @@ export interface ApiError {
 
 ---
 
-## Testing against production
+## Testing on production
 
-1. Import [`openapi.yaml`](./openapi.yaml) into Postman (**Import → File**)
-2. Set collection variable `baseUrl` = `https://pocketsync.onrender.com`
-3. Enable **cookie capture** in Postman settings
-4. Run **Login** first, then all other requests
+1. Import [`openapi.yaml`](./openapi.yaml) into Postman
+2. Set `baseUrl` = `https://pocketsync.onrender.com`
+3. Enable cookie capture
+4. Login first
 
-**Demo account** (if seeded on production DB):
-- Email: `demo@pocketsync.ng`
-- Password: `Demo@1234`
+Seed credentials (if the DB was seeded): `demo@pocketsync.ng` / `Demo@1234`
 
 ---
 
-## Mock vs real (set expectations)
+## Simulated vs live
 
-| Feature | Current behaviour |
-|---------|-------------------|
-| Account linking | Mock OAuth — preset balances |
-| Internal transfer | Real balance updates in DB |
-| Interbank transfer | Mock NIP — debit only, fake `nipReference` |
-| Bill payment | Mock — debit only |
-| Live bank sync | Not implemented — transactions created by user actions + seed |
+| Feature | Behaviour |
+|---------|-----------|
+| Account linking | Test link flow with preset balances |
+| Internal transfer | Updates balances in MongoDB |
+| External transfer | Debits source; returns test `nipReference` |
+| Bill payment | Debits source only |
+| Bank sync | No live import; data from user actions and seed |
 
 ---
 
-## Support
+## Files
 
-- **OpenAPI spec:** `docs/openapi.yaml`
-- **Health check:** `GET https://pocketsync.onrender.com/health`
-- **Backend repo:** `pocketsync-backend/`
+- OpenAPI: `docs/openapi.yaml`
+- Health: `GET /health`

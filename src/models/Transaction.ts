@@ -50,13 +50,13 @@ const TransactionSchema = new Schema<ITransaction>(
       type: String,
       required: true,
       maxlength: 200,
-      // Sanitise on write — prevents stored XSS via transaction descriptions
+
       set: (val: string) =>
         sanitizeHtml(val, { allowedTags: [], allowedAttributes: {} }),
     },
     amount: {
       type: Number,
-      required: true, // In kobo — positive = credit, negative = debit
+      required: true,
     },
     type: {
       type: String,

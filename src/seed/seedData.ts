@@ -469,7 +469,7 @@ const seedDatabase = async () => {
   await Transaction.deleteMany({});
   console.log("🗑️  Cleared existing data");
 
-  // Create demo user — bypass pre-save hook by inserting hash directly
+  // seed login user
   const passwordHash = await bcrypt.hash("Demo@1234", 12);
   const user = await User.collection.insertOne({
     email: "demo@pocketsync.ng",

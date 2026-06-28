@@ -11,7 +11,7 @@ export const sendPhoneOtpSms = async (
   phone: string,
   code: string,
 ): Promise<{ mocked: boolean }> => {
-  // Always mocked — no real SMS provider
+  // console only for now
   console.log(`[SMS MOCK] To: ${phone} | OTP: ${code}`);
   return { mocked: true };
 };

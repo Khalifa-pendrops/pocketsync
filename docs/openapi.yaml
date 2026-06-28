@@ -2,43 +2,21 @@ openapi: 3.0.3
 info:
   title: PocketSync API
   description: |
-    Consolidated personal finance manager API for the Nigerian market.
+    PocketSync REST API.
 
-    **Production base URL:** `https://pocketsync.onrender.com`
+    Production: `https://pocketsync.onrender.com`
 
-    ## Authentication
-    PocketSync uses **HttpOnly cookies** — not Bearer tokens. After `POST /api/v1/auth/login`,
-    the server sets `accessToken` and `refreshToken` cookies. All protected routes require
-    the browser/client to send cookies (`credentials: 'include'` in fetch, `withCredentials: true` in axios).
+    Auth uses HttpOnly cookies (`accessToken`, `refreshToken`). Send cookies on protected
+    routes (`credentials: 'include'` / `withCredentials: true`).
 
-    ## Sign-up & password reset (email OTP)
-    1. `POST /api/v1/auth/register` — creates account, sends 6-digit email OTP
-    2. `POST /api/v1/auth/verify-otp` with `purpose: signup` — marks email verified
-    3. `POST /api/v1/auth/login` — blocked until email is verified (`403`)
-    4. Forgot password: `POST /api/v1/auth/forgot-password` → `POST /api/v1/auth/reset-password`
+    Sign up: register → verify-otp → login.
+    Password reset: forgot-password → reset-password.
+    BVN onboarding: status → bvn/submit → bvn/verify-otp → bvn/accounts → bvn/connect.
 
-    OTP resend cooldown is **30 seconds**. Codes expire in **10 minutes**.
-    Without `RESEND_API_KEY`, OTPs are logged to the server console; in development the code
-    may also appear in the JSON response as `devOtp`.
+    BVN, SMS, external transfers, and bill pay are simulated in this build.
+    OTPs log to the server console; `devOtp` may appear in dev responses.
 
-    ## BVN onboarding (mocked — Phase 2)
-    After email verification and login, complete onboarding:
-    1. `GET /api/v1/onboarding/status` — route user to the correct step
-    2. `POST /api/v1/onboarding/bvn/submit` — mock BVN + phone validation, sends SMS OTP
-    3. `POST /api/v1/onboarding/bvn/verify-otp` — verifies phone, discovers mock accounts
-    4. `GET /api/v1/onboarding/bvn/accounts` — list accounts to connect
-    5. `POST /api/v1/onboarding/bvn/connect` — link selected accounts
-
-    BVN lookup and SMS are **mocked** — no real provider calls. OTPs log to server console;
-    `devOtp` may appear in development responses.
-
-    ## Amounts
-    All monetary values in API **requests and responses** are in **NGN (Naira)**.
-    Internally amounts are stored in kobo; the API converts for you.
-
-    ## Transaction amounts
-    - `type: "credit"` → positive `amount`
-    - `type: "debit"` → negative `amount`
+    Amounts are in NGN. Credits are positive; debits are negative in transaction objects.
   version: 1.0.0
   contact:
     name: PocketSync Backend Team
@@ -128,7 +106,7 @@ paths:
               password: Demo@1234
       responses:
         '200':
-          description: Login successful — cookies set
+          description: Login successful
           headers:
             Set-Cookie:
               description: accessToken and refreshToken HttpOnly cookies
@@ -330,7 +308,7 @@ paths:
       operationId: refreshToken
       responses:
         '200':
-          description: Token refreshed — new cookies set
+          description: Token refreshed
           content:
             application/json:
               schema:
@@ -371,8 +349,8 @@ paths:
   /api/v1/onboarding/bvn/submit:
     post:
       tags: [Onboarding]
-      summary: Submit BVN and phone (mock validation)
-      description: Accepts any valid 11-digit BVN and Nigerian phone. Sends mock SMS OTP.
+      summary: Submit BVN and phone
+      description: Accepts any valid 11-digit BVN and Nigerian phone in dev. Sends SMS OTP.
       operationId: submitBvn
       security:
         - cookieAuth: []
@@ -447,7 +425,7 @@ paths:
               $ref: '#/components/schemas/PhoneOtpVerifyRequest'
       responses:
         '200':
-          description: Phone verified, mock accounts discovered
+          description: Phone verified, accounts discovered
           content:
             application/json:
               schema:
@@ -526,7 +504,7 @@ paths:
   /api/v1/accounts/link:
     post:
       tags: [Accounts]
-      summary: Link a bank account (mock OAuth)
+      summary: Link a bank account
       operationId: linkAccount
       security:
         - cookieAuth: []
@@ -664,7 +642,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Account filter — account not found or not owned
+          description: Account not found or not owned
           content:
             application/json:
               schema:
@@ -720,9 +698,9 @@ paths:
       tags: [Transactions]
       summary: Interbank transfer (to external account)
       description: |
-        Mock NIP transfer to any external Nigerian bank account.
-        `recipientBank` accepts **any valid bank name** (not limited to linkable institutions).
-        Debits source only; returns mock `nipReference`.
+        External bank transfer (simulated NIP).
+        `recipientBank` accepts any valid bank name.
+        Debits the source account only.
       operationId: interbankTransfer
       security:
         - cookieAuth: []
@@ -1032,7 +1010,7 @@ components:
           example: 30
         devOtp:
           type: string
-          description: Present in development when email is mocked
+          description: Present in development when email is not sent via Resend
 
     LoginRequest:
       type: object
@@ -1109,7 +1087,7 @@ components:
           type: integer
         devOtp:
           type: string
-          description: Present in development when email is mocked
+          description: Present in development when email is not sent via Resend
 
     OtpCooldownError:
       type: object
@@ -1164,7 +1142,7 @@ components:
           example: If an account exists for this email, a verification code has been sent
         devOtp:
           type: string
-          description: Present in development when account exists and email is mocked
+          description: Present in development when the account exists
 
     ResetPasswordRequest:
       type: object
@@ -1375,7 +1353,7 @@ components:
           type: string
         amount:
           type: number
-          description: NGN — negative for debits, positive for credits
+          description: NGN. Negative for debits, positive for credits.
         type:
           $ref: '#/components/schemas/TransactionType'
         category:
@@ -1408,7 +1386,7 @@ components:
           $ref: '#/components/schemas/LinkableInstitution'
         mockAccountRef:
           type: string
-          description: Optional — last 4 digits used for masked number
+          description: Optional. Last 4 digits used for masked number.
 
     LinkAccountResponse:
       type: object

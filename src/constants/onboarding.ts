@@ -18,7 +18,6 @@ export type MockDiscoveredAccount = {
   balance: number; // kobo
 };
 
-/** Mock accounts "discovered" from BVN — no real lookup */
 export const MOCK_BVN_DISCOVERED_ACCOUNTS: MockDiscoveredAccount[] = [
   {
     institution: 'GTBank',

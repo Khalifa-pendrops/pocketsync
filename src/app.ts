@@ -13,7 +13,6 @@ import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
 
-// Security middleware — applied first
 app.use(helmet());
 const devOrigins = [
   "http://localhost:5173",
@@ -42,12 +41,10 @@ app.use(
   }),
 );
 
-// Body & cookie parsing
-app.use(express.json({ limit: "10kb" })); // Limit body size
+app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: false, limit: "10kb" }));
 app.use(cookieParser());
 
-// Strip $ and . keys from query/body — NoSQL operator injection prevention
 app.use((req, _res, next) => {
   const sanitise = (obj: Record<string, unknown>) => {
     for (const key of Object.keys(obj)) {
@@ -67,13 +64,11 @@ app.use((req, _res, next) => {
   next();
 });
 
-// Routes
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/onboarding", onboardingRoutes);
 app.use("/api/v1", accountRoutes);
 app.use("/api/v1", dataRoutes);
 
-// Health check
 app.get("/health", (_req, res) => {
   res.status(200).json({
     status: "ok",
@@ -82,15 +77,11 @@ app.get("/health", (_req, res) => {
   });
 });
 
-//  404 handler
 app.use((_req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
 
-// ── Global error handler — must be last ──
 app.use(errorHandler);
-
-//  Start server
 const PORT = parseInt(process.env.PORT || "5000", 10);
 
 const start = async () => {
