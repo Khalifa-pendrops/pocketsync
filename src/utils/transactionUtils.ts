@@ -106,6 +106,13 @@ export const maskAccountNumber = (accountNumber: string): string =>
 const sanitizeLabel = (value: string, maxLength: number): string =>
   sanitizeHtml(value.trim(), { allowedTags: [], allowedAttributes: {} }).slice(0, maxLength);
 
+/** Strip HTML from a description; returns fallback if input is empty after sanitisation */
+export const sanitizeDescription = (value: unknown, fallback = ''): string => {
+  if (typeof value !== 'string' || !value.trim()) return fallback;
+  const cleaned = sanitizeLabel(value, 200);
+  return cleaned.length >= 1 ? cleaned : fallback;
+};
+
 /** Any Nigerian bank name — not limited to PocketSync linkable institutions */
 export const parseRecipientBank = (bank: unknown): string | null => {
   if (typeof bank !== 'string' || !bank.trim()) return null;

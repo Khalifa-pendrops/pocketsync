@@ -10,6 +10,7 @@ import onboardingRoutes from "./routes/onboardingRoutes";
 import accountRoutes from "./routes/accountRoutes";
 import dataRoutes from "./routes/dataRoutes";
 import { errorHandler } from "./middleware/errorHandler";
+import { sanitizeInput } from "./middleware/sanitizeInput";
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use(
 app.use(express.json({ limit: "10kb" })); // Limit body size
 app.use(express.urlencoded({ extended: false, limit: "10kb" }));
 app.use(cookieParser());
+app.use(sanitizeInput);
 
 // Routes
 app.use("/api/v1/auth", authRoutes);
