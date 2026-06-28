@@ -20,6 +20,7 @@ const devOrigins = [
   "http://127.0.0.1:5173",
 ];
 const productionOrigin = process.env.ALLOWED_ORIGIN?.replace(/\/$/, "");
+const unsafeMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 app.use(
   cors({
@@ -44,6 +45,35 @@ app.use(
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: false, limit: "10kb" }));
 app.use(cookieParser());
+
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV !== "production" || !unsafeMethods.has(req.method)) {
+    next();
+    return;
+  }
+
+  if (!productionOrigin) {
+    res.status(403).json({ error: "Allowed origin is not configured" });
+    return;
+  }
+
+  const origin = req.get("origin");
+  const referer = req.get("referer");
+  let refererOrigin: string | undefined;
+
+  try {
+    refererOrigin = referer ? new URL(referer).origin : undefined;
+  } catch {
+    refererOrigin = undefined;
+  }
+
+  if (origin === productionOrigin || refererOrigin === productionOrigin) {
+    next();
+    return;
+  }
+
+  res.status(403).json({ error: "Request origin is not allowed" });
+});
 
 app.use((req, _res, next) => {
   const sanitise = (obj: Record<string, unknown>) => {
