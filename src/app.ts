@@ -47,6 +47,26 @@ app.use(express.json({ limit: "10kb" })); // Limit body size
 app.use(express.urlencoded({ extended: false, limit: "10kb" }));
 app.use(cookieParser());
 
+// Strip $ and . keys from query/body — NoSQL operator injection prevention
+app.use((req, _res, next) => {
+  const sanitise = (obj: Record<string, unknown>) => {
+    for (const key of Object.keys(obj)) {
+      if (key.includes("$") || key.includes(".")) {
+        delete obj[key];
+        continue;
+      }
+      const value = obj[key];
+      if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+        sanitise(value as Record<string, unknown>);
+      }
+    }
+  };
+
+  sanitise(req.query as Record<string, unknown>);
+  sanitise(req.body as Record<string, unknown>);
+  next();
+});
+
 // Routes
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/onboarding", onboardingRoutes);

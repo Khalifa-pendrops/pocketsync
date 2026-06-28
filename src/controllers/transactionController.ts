@@ -15,6 +15,7 @@ import {
   parseAmountNgn,
   parseRecipientBank,
   parseRecipientName,
+  sanitizeDescription,
 } from '../utils/transactionUtils';
 
 const respondDebitError = (
@@ -41,8 +42,10 @@ const respondDebitError = (
 const respondMovementError = (res: Response, err: unknown, fallback: string): void => {
   console.error(`[${fallback}]`, err);
   res.status(500).json({
-    error: fallback,
-    details: process.env.NODE_ENV === 'development' && err instanceof Error ? err.message : undefined,
+    error:
+      process.env.NODE_ENV === 'development' && err instanceof Error
+        ? err.message
+        : fallback,
   });
 };
 
@@ -64,9 +67,16 @@ export const getTransactions = async (req: Request, res: Response): Promise<void
     const filter: Record<string, unknown> = { userId };
 
     // If accountId provided, verify it belongs to this user before filtering
+    const safeCategory = typeof category === 'string' ? category : undefined;
+    const safeType = typeof type === 'string' ? type : undefined;
+    const safeFromDate = typeof fromDate === 'string' ? fromDate : undefined;
+    const safeToDate = typeof toDate === 'string' ? toDate : undefined;
+    const safePage = typeof page === 'string' ? page : '1';
+    const safeLimit = typeof limit === 'string' ? limit : '30';
+
     if (accountId && typeof accountId === 'string') {
       const account = await LinkedAccount.findOne({
-        _id: accountId as string,
+        _id: accountId,
         userId, // Ownership check — IDOR prevention
         isActive: true,
       });
@@ -76,20 +86,32 @@ export const getTransactions = async (req: Request, res: Response): Promise<void
         return;
       }
 
-      filter.accountId = accountId as string;
+      filter.accountId = accountId;
     }
 
-    if (category) filter.category = category;
-    if (type) filter.type = type;
+    if (
+      safeCategory &&
+      (TRANSACTION_CATEGORIES as readonly string[]).includes(safeCategory)
+    ) {
+      filter.category = safeCategory;
+    }
 
-    if (fromDate || toDate) {
+    if (safeType === 'credit' || safeType === 'debit') {
+      filter.type = safeType;
+    }
+
+    if (safeFromDate || safeToDate) {
       filter.date = {};
-      if (fromDate) (filter.date as Record<string, unknown>).$gte = new Date(fromDate as string);
-      if (toDate) (filter.date as Record<string, unknown>).$lte = new Date(toDate as string);
+      if (safeFromDate) {
+        (filter.date as Record<string, unknown>).$gte = new Date(safeFromDate);
+      }
+      if (safeToDate) {
+        (filter.date as Record<string, unknown>).$lte = new Date(safeToDate);
+      }
     }
 
-    const pageNum = Math.max(1, parseInt(page as string));
-    const limitNum = Math.min(30, parseInt(limit as string)); // Hard cap at 30 
+    const pageNum = Math.max(1, parseInt(safePage, 10));
+    const limitNum = Math.min(30, parseInt(safeLimit, 10)); // Hard cap at 30 
     const skip = (pageNum - 1) * limitNum;
 
     const [transactions, total] = await Promise.all([
@@ -199,15 +221,12 @@ export const transferMoney = async (req: Request, res: Response): Promise<void> 
     const source = debitResult.account;
     const destination = creditedAccount;
 
-    const debitDescription =
-      typeof description === 'string' && description.trim()
-        ? description.trim()
-        : `Transfer to ${destination.institution}`;
-
-    const creditDescription =
-      typeof description === 'string' && description.trim()
-        ? `Transfer from ${source.institution} — ${description.trim()}`
-        : `Transfer from ${source.institution}`;
+   const userDescription = sanitizeDescription(description, "");
+   const debitDescription =
+     userDescription || `Transfer to ${destination.institution}`;
+   const creditDescription = userDescription
+     ? `Transfer from ${source.institution} — ${userDescription}`
+     : `Transfer from ${source.institution}`;
 
     const [debitTransaction, creditTransaction] = await Transaction.create([
       {
@@ -312,10 +331,10 @@ export const interbankTransfer = async (req: Request, res: Response): Promise<vo
 
     const source = debitResult.account;
 
+    const userDescription = sanitizeDescription(description, '');
     const transferDescription =
-      typeof description === 'string' && description.trim()
-        ? description.trim()
-        : `Interbank transfer to ${recipientLabel} — ${recipientBankName} ${maskedRecipient}`;
+      userDescription ||
+      `Interbank transfer to ${recipientLabel} — ${recipientBankName} ${maskedRecipient}`;
 
     const transaction = await Transaction.create({
       userId,
@@ -394,10 +413,8 @@ export const payBill = async (req: Request, res: Response): Promise<void> => {
 
     const source = debitResult.account;
 
-    const billDescription =
-      typeof description === 'string' && description.trim()
-        ? description.trim()
-        : `Bill payment — ${billProvider}`;
+    const userDescription = sanitizeDescription(description, '');
+    const billDescription = userDescription || `Bill payment — ${billProvider}`;
 
     const transaction = await Transaction.create({
       userId,
